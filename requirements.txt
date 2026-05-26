@@ -2,6 +2,7 @@ fastapi~=0.115
 uvicorn~=0.34
 sqlalchemy~=2.0
 asyncpg~=0.30
+alembic~=1.13
 pandas~=2.2
 python-multipart~=0.0
 python-dotenv~=1.1

@@ -1,25 +1,30 @@
-from fastapi import Depends, HTTPException, status
+import logging
+from fastapi import Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from auth.jwt_handler import decode_access_token
 from db.database import get_db
 from repositories.access_repository import get_api_token
+from utils.errors import TokenInvalidError, TokenRevokedError, InsufficientPermissionsError
 
+logger = logging.getLogger(__name__)
 bearer_scheme = HTTPBearer()
 
 
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ) -> dict:
     token = credentials.credentials
     payload = decode_access_token(token)
     if not payload:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token")
+        logger.warning("Token validation failed — invalid or expired JWT")
+        raise TokenInvalidError()
 
     api_token = await get_api_token(db, token)
     if not api_token:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token has been revoked or does not exist")
+        logger.warning("Token lookup failed — revoked or unknown token")
+        raise TokenRevokedError()
 
     return payload
 
@@ -27,6 +32,10 @@ async def get_current_user(
 def require_roles(*roles: str):
     async def role_checker(user: dict = Depends(get_current_user)) -> dict:
         if user.get("role") not in roles:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
+            logger.warning(
+                "Permission denied for user_id=%s role=%s — required one of %s",
+                user.get("sub"), user.get("role"), roles,
+            )
+            raise InsufficientPermissionsError()
         return user
     return role_checker

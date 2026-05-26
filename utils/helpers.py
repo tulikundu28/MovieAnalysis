@@ -1,15 +1,19 @@
+import logging
 from abc import ABC, abstractmethod
 import pandas as pd
 import io
 from utils.constants import (
     CSV_TO_DB_COLUMNS, MovieColumns, CSV_TITLE_COL, CSV_GENRES_COL,
-    YEAR_EXTRACT_PATTERN, YEAR_STRIP_PATTERN, NO_GENRES_VALUE, GENRE_SEPARATOR
+    YEAR_EXTRACT_PATTERN, YEAR_STRIP_PATTERN, NO_GENRES_VALUE, GENRE_SEPARATOR,
 )
+
+logger = logging.getLogger(__name__)
+
 
 class FileProcessorHelper(ABC):
     @abstractmethod
-    def process(self, file_bytes: bytes) ->list[dict]:
-          pass
+    def process(self, file_bytes: bytes) -> list[dict]:
+        pass
 
 
 class CSVProcessorHelper(FileProcessorHelper):
@@ -23,4 +27,6 @@ class CSVProcessorHelper(FileProcessorHelper):
             lambda g: None if g == NO_GENRES_VALUE else [genre.strip().title() for genre in g.split(GENRE_SEPARATOR)]
         )
         df = df.dropna(subset=[MovieColumns.MOVIE_ID])
-        return df.to_dict(orient="records")
+        records = df.to_dict(orient="records")
+        logger.debug("CSV parsed: %d records", len(records))
+        return records

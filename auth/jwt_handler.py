@@ -1,4 +1,6 @@
+import logging
 import os
+import sys
 from datetime import datetime, timezone, timedelta
 from jose import jwt, JWTError
 from dotenv import load_dotenv
@@ -6,7 +8,11 @@ from utils.constants import JWT_ALGORITHM, JWT_EXPIRY_MINUTES
 
 load_dotenv()
 
+logger = logging.getLogger(__name__)
+
 JWT_SECRET = os.getenv("JWT_SECRET")
+if not JWT_SECRET:
+    sys.exit("FATAL: required environment variable 'JWT_SECRET' is not set")
 
 
 def create_access_token(user_id: int, role: str, expires_at: datetime | None, name: str = "") -> str:
@@ -16,14 +22,16 @@ def create_access_token(user_id: int, role: str, expires_at: datetime | None, na
         "name": name,
         "role": role,
         "expires_at": expires_at.isoformat() if expires_at else None,
-        "exp": expire
+        "exp": expire,
     }
-    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+    token = jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+    logger.debug("JWT created for user_id=%d role=%s", user_id, role)
+    return token
 
 
 def decode_access_token(token: str) -> dict:
     try:
-        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
-        return payload
-    except JWTError:
+        return jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+    except JWTError as exc:
+        logger.debug("JWT decode failed: %s", exc)
         return {}

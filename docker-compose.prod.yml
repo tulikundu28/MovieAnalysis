@@ -1,0 +1,22 @@
+# Production overrides.
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --no-build
+#
+# Before each deploy, replace the image digest with the value from the new release:
+#   docker inspect --format='{{index .RepoDigests 0}}' tulikundu/movie-analysis:x.y.z
+#
+# Required env vars (no .env file in prod — export from shell or inject via
+# AWS Secrets Manager / Parameter Store):
+#   POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB, JWT_SECRET
+
+services:
+  db:
+    ports: []  # never expose the DB port outside the host in prod
+
+  app:
+    # Pinned digest makes every redeploy bit-for-bit reproducible.
+    image: tulikundu/movie-analysis@sha256:REPLACE_WITH_DIGEST_AFTER_BUILD
+    environment:
+      APP_ENV: prod
+    restart: unless-stopped

@@ -1,3 +1,6 @@
+import os
+from datetime import datetime, timezone
+
 class MovieColumns:
     MOVIE_ID = "movie_id"
     TITLE = "title"
@@ -18,14 +21,12 @@ CSV_TO_DB_COLUMNS = {"movieId": MovieColumns.MOVIE_ID}
 GENRE_SEPARATOR = "|"
 
 JWT_ALGORITHM = "HS256"
-JWT_EXPIRY_MINUTES = 60
+JWT_EXPIRY_MINUTES = int(os.getenv("JWT_EXPIRY_MINUTES", "60"))
 LOGIN_SENTINEL_REQUEST_ID = 0
 
 TOKEN_TYPE = "bearer"
 REGISTRATION_REASON = "Account registration"
 EXPIRY_AUDIT_REASON = "Role expired or all access tokens revoked"
-
-from datetime import datetime, timezone
 WORKFLOW_EXPIRY_DATE = datetime(2099, 1, 1, tzinfo=timezone.utc)
 
 
@@ -60,4 +61,3 @@ class AuditAction:
 
 
 DOWNGRADEABLE_ROLES = (UserRole.FULL_ACCESS, UserRole.MOVIE_ADMIN)
-

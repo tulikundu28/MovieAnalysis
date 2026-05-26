@@ -1,8 +1,12 @@
+import logging
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
 from utils.helpers import CSVProcessorHelper
 from repositories.movie_repository import get_movie_by_id, search_movies, insert_movies_batch, update_movie
 from utils.constants import INSERTED_KEY, BATCH_SIZE, DEFAULT_PAGE_SIZE
+
+logger = logging.getLogger(__name__)
+
 
 async def fetch_movie_by_id(db: AsyncSession, movie_id: int):
     movie = await get_movie_by_id(db, movie_id)
@@ -12,12 +16,12 @@ async def fetch_movie_by_id(db: AsyncSession, movie_id: int):
 
 
 async def fetch_movies(
-        db: AsyncSession,
-        title: Optional[str] = None,
-        release_year: Optional[int] = None,
-        genre: Optional[str] = None,
-        cursor: Optional[int] = None,
-        page_size: int = DEFAULT_PAGE_SIZE
+    db: AsyncSession,
+    title: Optional[str] = None,
+    release_year: Optional[int] = None,
+    genre: Optional[str] = None,
+    cursor: Optional[int] = None,
+    page_size: int = DEFAULT_PAGE_SIZE,
 ):
     rows = await search_movies(db, title, release_year, genre, cursor, page_size)
     movies = [dict(row._mapping) for row in rows]
@@ -30,14 +34,17 @@ async def edit_movie(db: AsyncSession, movie_id: int, updates: dict):
         movie = await get_movie_by_id(db, movie_id)
         return dict(movie._mapping) if movie else None
     row = await update_movie(db, movie_id, updates)
+    if row:
+        logger.info("Movie updated: movie_id=%d fields=%s", movie_id, list(updates.keys()))
     return dict(row._mapping) if row else None
 
 
-async def process_csv_upload(db: AsyncSession, file_bytes: bytes, batch_size: int=BATCH_SIZE):
+async def process_csv_upload(db: AsyncSession, file_bytes: bytes, batch_size: int = BATCH_SIZE):
     processor = CSVProcessorHelper()
     movies = processor.process(file_bytes)
 
     for i in range(0, len(movies), batch_size):
         await insert_movies_batch(db, movies[i:i + batch_size])
 
+    logger.info("CSV upload complete: %d movies inserted/updated", len(movies))
     return {INSERTED_KEY: len(movies)}

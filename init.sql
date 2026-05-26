@@ -81,3 +81,11 @@ INSERT INTO access_requests (id, reference_id, requester_id, requested_role, rea
 SELECT 0, '00000000-0000-0000-0000-000000000000', id, 'workflow_admin', 'system sentinel for direct login tokens', 'approved', '2099-01-01 00:00:00+00', NOW(), NOW()
 FROM users WHERE email = 'tuli.ku09@gmail.com'
 ON CONFLICT (id) DO NOTHING;
+
+-- Stamp the Alembic baseline so the app's migration runner skips revision 0001
+-- on a freshly initialised database. Subsequent migrations are handled by Alembic.
+CREATE TABLE IF NOT EXISTS alembic_version (
+    version_num VARCHAR(32) NOT NULL,
+    CONSTRAINT alembic_version_pkc PRIMARY KEY (version_num)
+);
+INSERT INTO alembic_version (version_num) VALUES ('0001') ON CONFLICT DO NOTHING;
