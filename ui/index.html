@@ -641,7 +641,7 @@
         const el = document.getElementById('my-requests-list');
         el.innerHTML = '<p class="text-muted small mb-0">Loading…</p>';
         try {
-            const res  = await fetch(`${API}/access-requests/mine`, { headers: authHeaders() });
+            const res  = await fetch(`${API}/access-requests/?owner=me`, { headers: authHeaders() });
             const data = await res.json();
             if (!res.ok) { el.innerHTML = `<pre class="border border-danger">${JSON.stringify(data, null, 2)}</pre>`; return; }
             if (!data.length) { el.innerHTML = '<p class="text-muted small mb-0">No requests yet.</p>'; return; }
@@ -941,7 +941,7 @@
         const el   = document.getElementById('lookup-result');
         if (!uuid) return;
         try {
-            const res  = await fetch(`${API}/access-requests/lookup/${uuid}`);
+            const res  = await fetch(`${API}/access-requests/${uuid}`);
             const data = await res.json();
             if (res.ok) {
                 const color = { pending: 'warning', approved: 'success', denied: 'danger' }[data.status] || 'secondary';

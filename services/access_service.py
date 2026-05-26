@@ -77,11 +77,24 @@ async def fetch_user_access_requests(db: AsyncSession, user_id: int):
 
 
 
-async def fetch_access_request(db: AsyncSession, reference_id: str, caller_id: int, caller_role: str):
+async def fetch_access_request(
+    db: AsyncSession,
+    reference_id: str,
+    caller_id: Optional[int] = None,
+    caller_role: Optional[str] = None,
+):
     request = await get_access_request_by_reference_id(db, reference_id)
     if not request:
-        logger.warning("Request not found: ref=%s caller_id=%d", reference_id, caller_id)
+        logger.warning("Request not found: ref=%s caller_id=%s", reference_id, caller_id)
         raise RequestNotFoundError()
+
+    if caller_id is None:
+        return {
+            "reference_id": str(request.reference_id),
+            "requested_role": request.requested_role,
+            "status": request.status,
+            "review_comment": request.review_comment,
+        }
 
     if caller_role not in (UserRole.MANAGER, UserRole.WORKFLOW_ADMIN) and request.requester_id != caller_id:
         logger.warning("Unauthorised view: ref=%s caller_id=%d", reference_id, caller_id)

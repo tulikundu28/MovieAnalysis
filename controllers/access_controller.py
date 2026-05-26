@@ -3,7 +3,7 @@ from fastapi import Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
 from db.database import get_db
-from auth.dependencies import get_current_user, require_roles
+from auth.dependencies import get_current_user, get_optional_user, require_roles
 from models.access import AccessRequestCreate, AccessRequestReview
 from services.access_service import (
     submit_access_request, fetch_access_requests, fetch_access_request,
@@ -46,9 +46,11 @@ async def list_access_requests(
 async def get_access_request(
     reference_id: str,
     db: AsyncSession = Depends(get_db),
-    user: dict = Depends(get_current_user),
+    user: Optional[dict] = Depends(get_optional_user),
 ):
-    return await fetch_access_request(db, reference_id, int(user["sub"]), user["role"])
+    caller_id   = int(user["sub"]) if user else None
+    caller_role = user["role"]     if user else None
+    return await fetch_access_request(db, reference_id, caller_id, caller_role)
 
 
 async def review_request(
