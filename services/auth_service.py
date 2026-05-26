@@ -6,6 +6,7 @@ from auth.jwt_handler import create_access_token
 from repositories.user_repository import get_user_by_email, create_user
 from repositories.access_repository import create_api_token, create_access_request, insert_audit_log
 from utils.constants import JWT_EXPIRY_MINUTES, LOGIN_SENTINEL_REQUEST_ID, UserType, UserRole, AuditAction, TOKEN_TYPE, REGISTRATION_REASON
+from models.auth import RegistrationResponse, TokenResponse
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -29,7 +30,10 @@ async def register_user(db: AsyncSession, email: str, name: str, create_password
     req = await create_access_request(db, user.id, role, REGISTRATION_REASON, requested_expires_at)
     await insert_audit_log(db, req.id, user.id, AuditAction.SUBMITTED, None)
     await db.commit()
-    return {"reference_id": str(req.reference_id), "message": f"Request submitted. Awaiting {role} approval."}
+    return RegistrationResponse(
+        reference_id=str(req.reference_id),
+        message=f"Request submitted. Awaiting {role} approval."
+    )
 
 
 async def login_user(db: AsyncSession, email: str, password: str):
@@ -40,4 +44,4 @@ async def login_user(db: AsyncSession, email: str, password: str):
     expires_at = datetime.now(timezone.utc) + timedelta(minutes=JWT_EXPIRY_MINUTES)
     await create_api_token(db, user.id, LOGIN_SENTINEL_REQUEST_ID, user.role, token, expires_at)
     await db.commit()
-    return {"access_token": token, "token_type": TOKEN_TYPE}
+    return TokenResponse(access_token=token, token_type=TOKEN_TYPE)

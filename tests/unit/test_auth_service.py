@@ -70,7 +70,7 @@ async def test_register_user_happy_path_returns_reference_id(mock_db):
          patch("services.auth_service.insert_audit_log", AsyncMock()):
         result = await register_user(mock_db, "a@b.com", "Alice", "pass", "pass", "full_access", expires)
 
-    assert result["reference_id"] == "test-ref-123"
+    assert result.reference_id == "test-ref-123"
 
 
 # ── login_user ────────────────────────────────────────────────────────────────
@@ -102,5 +102,5 @@ async def test_login_user_success_returns_token(mock_db):
         result = await login_user(mock_db, "a@b.com", "correct")
 
     assert result is not None
-    assert "access_token" in result
-    assert result["token_type"] == "bearer"
+    assert result.access_token is not None
+    assert result.token_type == "bearer"
