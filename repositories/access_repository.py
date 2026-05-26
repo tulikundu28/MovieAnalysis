@@ -3,6 +3,7 @@ from sqlalchemy import select, update
 from typing import Optional
 from datetime import datetime, timezone
 from db.tables import access_requests_table, audit_log_table, users_table, api_tokens_table
+from utils.constants import RequestStatus
 
 
 async def create_access_request(
@@ -136,7 +137,7 @@ async def get_pending_request_for_user(db: AsyncSession, requester_id: int):
         select(access_requests_table)
         .where(
             access_requests_table.c.requester_id == requester_id,
-            access_requests_table.c.status == "pending"
+            access_requests_table.c.status == RequestStatus.PENDING
         )
         .order_by(access_requests_table.c.created_at.desc())
         .limit(1)
@@ -150,9 +151,9 @@ async def cancel_access_request(db: AsyncSession, request_id: int, requester_id:
         .where(
             access_requests_table.c.id == request_id,
             access_requests_table.c.requester_id == requester_id,
-            access_requests_table.c.status == "pending"
+            access_requests_table.c.status == RequestStatus.PENDING
         )
-        .values(status="cancelled", updated_at=datetime.now(timezone.utc))
+        .values(status=RequestStatus.CANCELLED, updated_at=datetime.now(timezone.utc))
         .returning(*access_requests_table.c)
     )
     return result.fetchone()
@@ -206,7 +207,7 @@ async def get_latest_approved_request_per_user(db: AsyncSession, user_ids: list[
         )
         .where(
             access_requests_table.c.requester_id.in_(user_ids),
-            access_requests_table.c.status == "approved"
+            access_requests_table.c.status == RequestStatus.APPROVED
         )
         .group_by(access_requests_table.c.requester_id)
         .subquery()

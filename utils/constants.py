@@ -21,3 +21,43 @@ JWT_ALGORITHM = "HS256"
 JWT_EXPIRY_MINUTES = 60
 LOGIN_SENTINEL_REQUEST_ID = 0
 
+TOKEN_TYPE = "bearer"
+REGISTRATION_REASON = "Account registration"
+EXPIRY_AUDIT_REASON = "Role expired or all access tokens revoked"
+
+from datetime import datetime, timezone
+WORKFLOW_EXPIRY_DATE = datetime(2099, 1, 1, tzinfo=timezone.utc)
+
+
+class UserRole:
+    FREE           = "free"
+    FULL_ACCESS    = "full_access"
+    MOVIE_ADMIN    = "movie_admin"
+    WORKFLOW_ADMIN = "workflow_admin"
+    MANAGER        = "manager"
+
+
+class UserType:
+    MOVIE_CUSTOMER    = "movie_customer"
+    WORKFLOW_APPROVER = "workflow_approver"
+
+
+class RequestStatus:
+    PENDING   = "pending"
+    APPROVED  = "approved"
+    DENIED    = "denied"
+    REVOKED   = "revoked"
+    CANCELLED = "cancelled"
+
+
+class AuditAction:
+    SUBMITTED = "submitted"
+    APPROVED  = "approved"
+    DENIED    = "denied"
+    REVOKED   = "revoked"
+    CANCELLED = "cancelled"
+    EXPIRED   = "expired"
+
+
+DOWNGRADEABLE_ROLES = (UserRole.FULL_ACCESS, UserRole.MOVIE_ADMIN)
+

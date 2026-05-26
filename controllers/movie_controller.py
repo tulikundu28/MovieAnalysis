@@ -5,7 +5,7 @@ from db.database import get_db
 from auth.dependencies import require_roles
 from models.movie import MovieUpdate
 from services.movie_service import fetch_movie_by_id, fetch_movies, process_csv_upload, edit_movie as edit_movie_service
-from utils.constants import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
+from utils.constants import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE, UserRole
 
 
 async def search_movies(
@@ -29,7 +29,7 @@ async def get_movie(movie_id: int, db: AsyncSession = Depends(get_db)):
 async def upload_movies(
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
-    user: dict = Depends(require_roles("movie_admin", "workflow_admin"))
+    user: dict = Depends(require_roles(UserRole.MOVIE_ADMIN, UserRole.WORKFLOW_ADMIN))
 ):
     file_bytes = await file.read()
     return await process_csv_upload(db, file_bytes)
@@ -39,7 +39,7 @@ async def edit_movie(
     movie_id: int,
     body: MovieUpdate,
     db: AsyncSession = Depends(get_db),
-    user: dict = Depends(require_roles("movie_admin", "workflow_admin"))
+    user: dict = Depends(require_roles(UserRole.MOVIE_ADMIN, UserRole.WORKFLOW_ADMIN))
 ):
     result = await edit_movie_service(db, movie_id, body.model_dump(exclude_none=True))
     if not result:

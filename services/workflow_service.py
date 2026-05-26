@@ -1,12 +1,10 @@
-from datetime import datetime, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException, status
 from repositories.user_repository import get_user_by_email, create_user
 from repositories.access_repository import create_access_request, insert_audit_log
 from services.auth_service import hash_password
 from services.access_service import WORKFLOW_ROLES
-
-_WORKFLOW_EXPIRES = datetime(2099, 1, 1, tzinfo=timezone.utc)
+from utils.constants import UserType, AuditAction, WORKFLOW_EXPIRY_DATE
 
 
 async def register_workflow_user(
@@ -26,9 +24,9 @@ async def register_workflow_user(
     if await get_user_by_email(db, email):
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered")
 
-    user = await create_user(db, email, name, hash_password(password), user_type='workflow_approver')
-    request = await create_access_request(db, user.id, requested_role, reason, _WORKFLOW_EXPIRES)
-    await insert_audit_log(db, request.id, user.id, "submitted", None)
+    user = await create_user(db, email, name, hash_password(password), user_type=UserType.WORKFLOW_APPROVER)
+    request = await create_access_request(db, user.id, requested_role, reason, WORKFLOW_EXPIRY_DATE)
+    await insert_audit_log(db, request.id, user.id, AuditAction.SUBMITTED, None)
     await db.commit()
     return {
         "request_id": request.id,

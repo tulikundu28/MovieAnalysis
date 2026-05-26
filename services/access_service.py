@@ -19,16 +19,17 @@ from repositories.access_repository import (
 )
 from repositories.user_repository import get_user_by_id
 from auth.jwt_handler import create_access_token
+from utils.constants import UserRole, RequestStatus, AuditAction
 
 ROLE_APPROVER_MAP = {
-    "full_access":   "manager",        # movie customer upgrade — manager approves
-    "movie_admin":   "workflow_admin", # movie customer admin — workflow_admin approves
-    "manager":       "workflow_admin", # workflow approver registration — workflow_admin approves
-    "workflow_admin":"workflow_admin", # workflow approver registration — workflow_admin approves
+    UserRole.FULL_ACCESS:    UserRole.MANAGER,        # movie customer upgrade — manager approves
+    UserRole.MOVIE_ADMIN:    UserRole.WORKFLOW_ADMIN, # movie customer admin — workflow_admin approves
+    UserRole.MANAGER:        UserRole.WORKFLOW_ADMIN, # workflow approver registration — workflow_admin approves
+    UserRole.WORKFLOW_ADMIN: UserRole.WORKFLOW_ADMIN, # workflow approver registration — workflow_admin approves
 }
 
-MOVIE_CUSTOMER_ROLES = {"full_access", "movie_admin"}
-WORKFLOW_ROLES       = {"manager", "workflow_admin"}
+MOVIE_CUSTOMER_ROLES = {UserRole.FULL_ACCESS, UserRole.MOVIE_ADMIN}
+WORKFLOW_ROLES       = {UserRole.MANAGER, UserRole.WORKFLOW_ADMIN}
 
 
 async def submit_access_request(
@@ -49,7 +50,7 @@ async def submit_access_request(
         )
 
     request = await create_access_request(db, requester_id, requested_role, reason, requested_expires_at)
-    await insert_audit_log(db, request.id, requester_id, "submitted", None)
+    await insert_audit_log(db, request.id, requester_id, AuditAction.SUBMITTED, None)
     await db.commit()
     return dict(request._mapping)
 
@@ -76,7 +77,7 @@ async def fetch_access_request(
     request = await get_access_request_by_reference_id(db, reference_id)
     if not request:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Request not found")
-    if caller_role not in ("manager", "workflow_admin") and request.requester_id != caller_id:
+    if caller_role not in (UserRole.MANAGER, UserRole.WORKFLOW_ADMIN) and request.requester_id != caller_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorised to view this request")
     return dict(request._mapping)
 
@@ -87,10 +88,10 @@ async def cancel_own_request(db: AsyncSession, reference_id: str, requester_id: 
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Request not found")
     if request.requester_id != requester_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorised to cancel this request")
-    if request.status != "pending":
+    if request.status != RequestStatus.PENDING:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Only pending requests can be cancelled")
     updated = await cancel_access_request(db, request.id, requester_id)
-    await insert_audit_log(db, request.id, requester_id, "cancelled", None)
+    await insert_audit_log(db, request.id, requester_id, AuditAction.CANCELLED, None)
     await db.commit()
     return dict(updated._mapping)
 
@@ -114,17 +115,17 @@ async def revoke_access_request(
     if not request:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Request not found")
 
-    if request.status != "approved":
+    if request.status != RequestStatus.APPROVED:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Only approved requests can be revoked")
 
     required_approver = ROLE_APPROVER_MAP.get(request.requested_role)
     if revoker_role != required_approver:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorised to revoke this request")
 
-    updated = await update_access_request(db, request.id, "revoked", revoker_id, review_comment)
-    await update_user_role(db, request.requester_id, "free", None)
+    updated = await update_access_request(db, request.id, RequestStatus.REVOKED, revoker_id, review_comment)
+    await update_user_role(db, request.requester_id, UserRole.FREE, None)
     await revoke_user_tokens(db, request.requester_id)
-    await insert_audit_log(db, request.id, revoker_id, "revoked", review_comment)
+    await insert_audit_log(db, request.id, revoker_id, AuditAction.REVOKED, review_comment)
     await db.commit()
     return dict(updated._mapping)
 
@@ -152,27 +153,27 @@ async def review_access_request(
     if not request:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Request not found")
 
-    if request.status != "pending":
+    if request.status != RequestStatus.PENDING:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Request already reviewed")
 
     required_approver = ROLE_APPROVER_MAP.get(request.requested_role)
     if reviewer_role != required_approver:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorised to review this request")
 
-    if new_status == "denied" and not review_comment:
+    if new_status == RequestStatus.DENIED and not review_comment:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Comment required when denying")
 
     updated = await update_access_request(db, request.id, new_status, reviewer_id, review_comment)
 
     issued_token = None
-    if new_status == "approved":
+    if new_status == RequestStatus.APPROVED:
         await update_user_role(db, request.requester_id, request.requested_role, request.requested_expires_at)
         requester = await get_user_by_id(db, request.requester_id)
         jwt_token = create_access_token(request.requester_id, request.requested_role, request.requested_expires_at, requester.name if requester else "")
         await create_api_token(db, request.requester_id, request.id, request.requested_role, jwt_token, request.requested_expires_at)
         issued_token = jwt_token
 
-    await insert_audit_log(db, request.id, reviewer_id, new_status, review_comment)
+    await insert_audit_log(db, request.id, reviewer_id, AuditAction.APPROVED if new_status == RequestStatus.APPROVED else AuditAction.DENIED, review_comment)
     await db.commit()
 
     result = dict(updated._mapping)

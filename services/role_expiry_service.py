@@ -4,10 +4,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import update, select, and_, or_
 from db.tables import users_table, api_tokens_table
 from db.database import AsyncSessionLocal
-from utils.constants import LOGIN_SENTINEL_REQUEST_ID
+from utils.constants import LOGIN_SENTINEL_REQUEST_ID, DOWNGRADEABLE_ROLES, UserRole, AuditAction, EXPIRY_AUDIT_REASON
 from repositories.access_repository import get_latest_approved_request_per_user, insert_audit_log
-
-DOWNGRADEABLE_ROLES = ('full_access', 'movie_admin')
 
 
 async def downgrade_expired_or_revoked(db: AsyncSession) -> int:
@@ -38,7 +36,7 @@ async def downgrade_expired_or_revoked(db: AsyncSession) -> int:
                 ),
             )
         )
-        .values(role="free", expires_at=None)
+        .values(role=UserRole.FREE, expires_at=None)
         .returning(users_table.c.id)
     )
     affected_ids = [row.id for row in result.fetchall()]
@@ -56,7 +54,7 @@ async def downgrade_expired_or_revoked(db: AsyncSession) -> int:
         )
         request_map = await get_latest_approved_request_per_user(db, affected_ids)
         for user_id, request_id in request_map.items():
-            await insert_audit_log(db, request_id, None, "expired", "Role expired or all access tokens revoked")
+            await insert_audit_log(db, request_id, None, AuditAction.EXPIRED, EXPIRY_AUDIT_REASON)
 
     await db.commit()
     return len(affected_ids)

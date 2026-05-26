@@ -4,7 +4,7 @@ from sqlalchemy.dialects.postgresql import ARRAY, ENUM, UUID
 
 TZ = TIMESTAMP(timezone=True)
 
-from utils.constants import MovieColumns, MOVIES_TABLE
+from utils.constants import MovieColumns, MOVIES_TABLE, UserRole, UserType, RequestStatus
 
 metadata = MetaData()
 
@@ -27,8 +27,8 @@ users_table = Table(
     Column("email", Text, nullable=False, unique=True),
     Column("name", Text, nullable=False),
     Column("password_hash", Text, nullable=False),
-    Column("role", user_role_enum, nullable=False, server_default="free"),
-    Column("user_type", user_type_enum, nullable=False, server_default="movie_customer"),
+    Column("role", user_role_enum, nullable=False, server_default=UserRole.FREE),
+    Column("user_type", user_type_enum, nullable=False, server_default=UserType.MOVIE_CUSTOMER),
     Column("expires_at", TZ),
     Column("created_at", TZ, nullable=False)
 )
@@ -44,7 +44,7 @@ access_requests_table = Table(
     Column("requester_id", Integer, nullable=False),
     Column("requested_role", requested_role_enum, nullable=False),
     Column("reason", Text, nullable=False),
-    Column("status", request_status_enum, nullable=False, server_default="pending"),
+    Column("status", request_status_enum, nullable=False, server_default=RequestStatus.PENDING),
     Column("reviewed_by", Integer),
     Column("review_comment", Text),
     Column("requested_expires_at", TZ, nullable=False),
