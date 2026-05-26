@@ -1,10 +1,10 @@
 from fastapi import FastAPI, APIRouter
 from models.movie import Movie, MovieSearchResponse
 from models.auth import TokenResponse, RegistrationResponse
-from models.access import AccessRequestResponse, AccessRequestStatusResponse, ReviewResponse
+from models.access import AccessRequestResponse, ReviewResponse
 from controllers.movie_controller import search_movies, get_movie, upload_movies, edit_movie
 from controllers.auth_controller import login, register
-from controllers.access_controller import create_access_request, list_access_requests, list_my_access_requests, get_access_request, review_request, lookup_access_request
+from controllers.access_controller import create_access_request, list_access_requests, list_my_access_requests, get_access_request, review_request, get_audit_log_for_request
 from controllers.workflow_controller import register_workflow_user
 
 movie_router = APIRouter(prefix="/movies", tags=["movies"])
@@ -26,8 +26,8 @@ workflow_router.post("/")(register_workflow_user)
 # fixed-path routes before /{reference_id} to avoid shadowing
 access_router.post("/", response_model=AccessRequestResponse)(create_access_request)
 access_router.get("/mine", response_model=list[AccessRequestResponse])(list_my_access_requests)
-access_router.get("/lookup/{reference_id}", response_model=AccessRequestStatusResponse)(lookup_access_request)
 access_router.get("/", response_model=list[AccessRequestResponse])(list_access_requests)
+access_router.get("/{reference_id}/audit")(get_audit_log_for_request)
 access_router.get("/{reference_id}", response_model=AccessRequestResponse)(get_access_request)
 access_router.patch("/{reference_id}", response_model=ReviewResponse)(review_request)
 

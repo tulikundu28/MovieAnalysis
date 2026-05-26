@@ -173,6 +173,7 @@
                                             <option value="pending">Pending</option>
                                             <option value="approved">Approved</option>
                                             <option value="denied">Denied</option>
+                                            <option value="revoked">Revoked</option>
                                             <option value="">All</option>
                                         </select>
                                         <button class="btn btn-outline-primary btn-sm" onclick="loadApprovalQueue()">Refresh</button>
@@ -191,64 +192,102 @@
         <div class="tab-pane fade" id="tab-movies">
             <div class="row">
 
-                <!-- Movie Customer registration — not logged in -->
-                <div id="movie-register-section" class="col-md-4" style="display:none">
+                <!-- Not logged in: Sign Up / Existing Customer -->
+                <div id="movie-register-section" class="col-md-5" style="display:none">
                     <div class="card shadow-sm mb-3">
-                        <div class="card-body">
-                            <h5 class="card-title mb-3">Login</h5>
-                            <div class="mb-3">
-                                <label class="form-label">Email</label>
-                                <input type="email" id="movies-login-email" class="form-control" placeholder="you@example.com">
+                        <div class="card-header p-0 border-bottom-0">
+                            <ul class="nav nav-tabs card-header-tabs" style="margin:0;border-bottom:none">
+                                <li class="nav-item">
+                                    <a class="nav-link active" id="movies-signup-link" data-bs-toggle="tab" href="#movies-signup-tab">Sign Up</a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link" id="movies-existing-link" data-bs-toggle="tab" href="#movies-existing-tab">Existing Customer</a>
+                                </li>
+                            </ul>
+                        </div>
+                        <div class="card-body tab-content">
+
+                            <!-- Sign Up tab -->
+                            <div class="tab-pane fade show active" id="movies-signup-tab">
+                                <p class="text-muted small mb-3">New here? Create an account and request access to browse movies.</p>
+                                <div class="mb-2">
+                                    <label class="form-label">Full Name</label>
+                                    <input type="text" id="reg-name" class="form-control" placeholder="Jane Doe">
+                                </div>
+                                <div class="mb-2">
+                                    <label class="form-label">Email</label>
+                                    <input type="email" id="reg-email" class="form-control" placeholder="jane@example.com">
+                                </div>
+                                <div class="row g-2 mb-2">
+                                    <div class="col-6">
+                                        <label class="form-label">Password</label>
+                                        <input type="password" id="reg-password" class="form-control">
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label">Confirm</label>
+                                        <input type="password" id="reg-confirm" class="form-control">
+                                    </div>
+                                </div>
+                                <div class="row g-2 mb-3">
+                                    <div class="col-6">
+                                        <label class="form-label">Access Type</label>
+                                        <select id="reg-role" class="form-select">
+                                            <option value="full_access">Full Access</option>
+                                            <option value="movie_admin">Movie Admin</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label">Access Until</label>
+                                        <input type="datetime-local" id="reg-expires" class="form-control">
+                                    </div>
+                                </div>
+                                <button class="btn btn-success w-100" onclick="registerCustomer()">Create Account</button>
+                                <div id="reg-result" class="mt-2"></div>
                             </div>
-                            <div class="mb-3">
-                                <label class="form-label">Password</label>
-                                <input type="password" id="movies-login-password" class="form-control" onkeydown="if(event.key==='Enter') moviesLogin()">
+
+                            <!-- Existing Customer tab -->
+                            <div class="tab-pane fade" id="movies-existing-tab">
+                                <p class="text-muted small mb-3">Already registered? Log in. If your access was denied or expired, you can re-request after logging in.</p>
+                                <div class="mb-2">
+                                    <label class="form-label">Email</label>
+                                    <input type="email" id="movies-login-email" class="form-control" placeholder="you@example.com">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Password</label>
+                                    <input type="password" id="movies-login-password" class="form-control" onkeydown="if(event.key==='Enter') moviesLogin()">
+                                </div>
+                                <button class="btn btn-primary w-100" onclick="moviesLogin()">Log In</button>
+                                <div id="movies-login-error" class="mt-2"></div>
                             </div>
-                            <button class="btn btn-primary w-100" onclick="moviesLogin()">Login</button>
-                            <div id="movies-login-error" class="mt-2"></div>
+
                         </div>
                     </div>
 
+                </div>
+
+                <!-- Logged in as free: Request Access -->
+                <div id="movie-free-section" class="col-md-4" style="display:none">
                     <div class="card shadow-sm">
                         <div class="card-body">
-                            <h5 class="card-title mb-3">Sign Up as Movie Customer</h5>
-                            <p class="text-muted small">Free account — browse movies instantly. Request an upgrade later for full access.</p>
-                            <div class="mb-3">
-                                <label class="form-label">Full Name</label>
-                                <input type="text" id="reg-name" class="form-control" placeholder="Jane Doe">
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Email</label>
-                                <input type="email" id="reg-email" class="form-control" placeholder="jane@example.com">
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Password</label>
-                                <input type="password" id="reg-password" class="form-control">
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Confirm Password</label>
-                                <input type="password" id="reg-confirm" class="form-control">
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Account Type</label>
-                                <select id="reg-role" class="form-select">
+                            <h5 class="card-title mb-1">Request Access</h5>
+                            <p class="text-muted small mb-3">Your current access is <strong>free</strong>. Submit a request to upgrade.</p>
+                            <div class="mb-2">
+                                <label class="form-label">Access Type</label>
+                                <select id="movies-req-role" class="form-select">
                                     <option value="full_access">Full Access — all details &amp; pagination</option>
                                     <option value="movie_admin">Movie Admin — full access + edit movies</option>
                                 </select>
                             </div>
-                            <button class="btn btn-success w-100" onclick="registerCustomer()">Create Account</button>
-                            <div id="reg-result" class="mt-2"></div>
-                        </div>
-                    </div>
-
-                    <div class="card shadow-sm">
-                        <div class="card-body">
-                            <h6 class="card-title mb-2">Check Request Status</h6>
-                            <div class="input-group">
-                                <input type="text" id="lookup-uuid" class="form-control form-control-sm" placeholder="Paste your reference ID…">
-                                <button class="btn btn-outline-secondary btn-sm" onclick="lookupRequest()">Check</button>
+                            <div class="mb-2">
+                                <label class="form-label">Reason</label>
+                                <textarea id="movies-req-reason" class="form-control" rows="2" placeholder="Why do you need this access?"></textarea>
                             </div>
-                            <div id="lookup-result" class="mt-2"></div>
+                            <div class="mb-3">
+                                <label class="form-label">Access Until</label>
+                                <input type="datetime-local" id="movies-req-expires" class="form-control">
+                            </div>
+                            <button class="btn btn-primary w-100" onclick="submitMoviesUpgrade()">Submit Request</button>
+                            <div id="movies-req-result" class="mt-2"></div>
                         </div>
                     </div>
                 </div>
@@ -347,7 +386,7 @@
             `<pre class="${isError ? 'border border-danger' : ''}">${JSON.stringify(data, null, 2)}</pre>`;
     }
     function renderStatusBadge(s) {
-        const map = { pending: 'warning', approved: 'success', denied: 'danger' };
+        const map = { pending: 'warning', approved: 'success', denied: 'danger', revoked: 'secondary', cancelled: 'secondary' };
         return `<span class="badge bg-${map[s] || 'secondary'}">${s}</span>`;
     }
 
@@ -400,11 +439,24 @@
         // Pending queue — approvers only
         document.getElementById('pending-section').style.display = isApprover ? 'block' : 'none';
 
-        // Movies: side-by-side registration when not logged in
-        const regSection = document.getElementById('movie-register-section');
-        const moviesCol  = document.getElementById('movies-content-col');
-        regSection.style.display = isLoggedIn ? 'none' : 'block';
-        moviesCol.className = isLoggedIn ? 'col-md-12' : 'col-md-8';
+        // Movies tab column states
+        const regSection  = document.getElementById('movie-register-section');
+        const freeSection = document.getElementById('movie-free-section');
+        const moviesCol   = document.getElementById('movies-content-col');
+        const isFree      = isLoggedIn && payload.role === 'free';
+
+        regSection.style.display  = !isLoggedIn ? 'block' : 'none';
+        freeSection.style.display = isFree ? 'block' : 'none';
+        moviesCol.className = !isLoggedIn ? 'col-md-7' : (isFree ? 'col-md-8' : 'col-md-12');
+
+        if (!isLoggedIn) initRegExpiry();
+        if (isFree) {
+            const el = document.getElementById('movies-req-expires');
+            if (!el.value) {
+                const d = new Date(); d.setDate(d.getDate() + 30);
+                el.value = d.toISOString().slice(0, 16);
+            }
+        }
 
         // Upload — admin only
         document.getElementById('upload-section').style.display =
@@ -490,13 +542,24 @@
 
     // ── MOVIE CUSTOMER REGISTRATION ──────────────────────────────────────────
 
+    function initRegExpiry() {
+        const el = document.getElementById('reg-expires');
+        if (!el.value) {
+            const d = new Date();
+            d.setDate(d.getDate() + 30);
+            el.value = d.toISOString().slice(0, 16);
+        }
+    }
+
     async function registerCustomer() {
+        const expiresVal = document.getElementById('reg-expires').value;
         const body = {
-            name:             document.getElementById('reg-name').value,
-            email:            document.getElementById('reg-email').value,
-            create_password:  document.getElementById('reg-password').value,
-            confirm_password: document.getElementById('reg-confirm').value,
-            role:             document.getElementById('reg-role').value
+            name:                 document.getElementById('reg-name').value,
+            email:                document.getElementById('reg-email').value,
+            create_password:      document.getElementById('reg-password').value,
+            confirm_password:     document.getElementById('reg-confirm').value,
+            role:                 document.getElementById('reg-role').value,
+            requested_expires_at: expiresVal ? new Date(expiresVal).toISOString() : null
         };
         try {
             const res  = await fetch(`${API}/users/`, {
@@ -507,13 +570,39 @@
             const data = await res.json();
             const el   = document.getElementById('reg-result');
             if (res.ok) {
-                el.innerHTML = `<div class="alert alert-success py-2">${data.message}<br><small class="user-select-all">${data.reference_id}</small><br><small class="text-muted">Save this reference ID — use it below to check your request status.</small></div>`;
+                el.innerHTML = `<div class="alert alert-success py-2">Free account created. <a href="#" onclick="new bootstrap.Tab(document.getElementById('movies-existing-link')).show(); return false;">Sign in</a> to check your upgrade request.</div>`;
             } else {
                 el.innerHTML = `<div class="alert alert-danger py-2">${data.detail || 'Registration failed'}</div>`;
             }
         } catch (e) {
             document.getElementById('reg-result').innerHTML = `<div class="alert alert-danger py-2">${e.message}</div>`;
         }
+    }
+
+    // ── MOVIES TAB REQUEST ACCESS (free logged-in users) ─────────────────────
+
+    async function submitMoviesUpgrade() {
+        const expiresVal = document.getElementById('movies-req-expires').value;
+        const body = {
+            requested_role:       document.getElementById('movies-req-role').value,
+            reason:               document.getElementById('movies-req-reason').value,
+            requested_expires_at: expiresVal ? new Date(expiresVal).toISOString() : null
+        };
+        const el = document.getElementById('movies-req-result');
+        try {
+            const res  = await fetch(`${API}/access-requests/`, {
+                method: 'POST', headers: authHeaders(), body: JSON.stringify(body)
+            });
+            const data = await res.json();
+            if (res.ok) {
+                el.innerHTML = `<div class="alert alert-success py-2">Request submitted.<br><small class="user-select-all">${data.reference_id}</small></div>`;
+                loadMyRequests();
+            } else if (res.status === 409) {
+                handlePending409(data, el);
+            } else {
+                el.innerHTML = `<div class="alert alert-danger py-2">${data.detail || 'Submission failed'}</div>`;
+            }
+        } catch (e) { el.innerHTML = `<div class="alert alert-danger py-2">${e.message}</div>`; }
     }
 
     // ── REQUEST ACCESS UPGRADE ────────────────────────────────────────────────
@@ -536,6 +625,8 @@
             if (res.ok) {
                 el.innerHTML = `<div class="alert alert-success py-2">Request submitted.<br><small class="user-select-all">${data.reference_id}</small></div>`;
                 loadMyRequests();
+            } else if (res.status === 409) {
+                handlePending409(data, el);
             } else {
                 el.innerHTML = `<div class="alert alert-danger py-2">${data.detail || 'Submission failed'}</div>`;
             }
@@ -554,7 +645,7 @@
             const data = await res.json();
             if (!res.ok) { el.innerHTML = `<pre class="border border-danger">${JSON.stringify(data, null, 2)}</pre>`; return; }
             if (!data.length) { el.innerHTML = '<p class="text-muted small mb-0">No requests yet.</p>'; return; }
-            el.innerHTML = data.map(r => renderRequestCard(r, `my-${r.reference_id}`)).join('');
+            el.innerHTML = data.map(r => renderRequestCard(r, `my-${r.reference_id}`, false)).join('');
         } catch (e) { el.innerHTML = `<p class="text-danger small">${e.message}</p>`; }
     }
 
@@ -570,14 +661,16 @@
             const data = await res.json();
             if (!res.ok) { el.innerHTML = `<pre class="border border-danger">${JSON.stringify(data, null, 2)}</pre>`; return; }
             if (!data.length) { el.innerHTML = '<p class="text-muted small mb-0">No requests found.</p>'; return; }
-            el.innerHTML = data.map(r => renderRequestCard(r, `queue-${r.reference_id}`)).join('');
+            el.innerHTML = data.map(r => renderRequestCard(r, `queue-${r.reference_id}`, true)).join('');
         } catch (e) { el.innerHTML = `<p class="text-danger small">${e.message}</p>`; }
     }
 
-    function renderRequestCard(r, denyKey) {
+    function renderRequestCard(r, denyKey, isQueue = false) {
         const payload    = getPayload();
         const isApprover = payload && APPROVER_ROLES.includes(payload.role);
-        const showActions = isApprover && r.status === 'pending';
+        const showActions = isQueue && isApprover && r.status === 'pending';
+        const showRevoke  = isQueue && isApprover && r.status === 'approved';
+        const showCancel  = !isQueue && r.status === 'pending';
         const ref = r.reference_id;
         return `
         <div class="card shadow-sm">
@@ -589,6 +682,11 @@
                 <div class="text-muted small mb-1"><strong>Reason:</strong> ${r.reason}</div>
                 <div class="text-muted small mb-1"><strong>Expires:</strong> ${new Date(r.requested_expires_at).toLocaleString()}</div>
                 ${r.review_comment ? `<div class="text-muted small mb-1"><strong>Comment:</strong> ${r.review_comment}</div>` : ''}
+                <button class="btn btn-link btn-sm p-0 text-muted" onclick="toggleAuditLog('${ref}','audit-${denyKey}')">View Audit Trail</button>
+                <div id="audit-${denyKey}" style="display:none" class="mt-2"></div>
+                ${showCancel ? `
+                <hr class="my-2">
+                <button class="btn btn-outline-danger btn-sm" onclick="cancelRequest('${ref}')">Cancel Request</button>` : ''}
                 ${showActions ? `
                 <hr class="my-2">
                 <div class="d-flex gap-2 flex-wrap">
@@ -602,6 +700,18 @@
                         <button class="btn btn-secondary btn-sm" onclick="toggleDenyForm('${denyKey}')">Cancel</button>
                     </div>
                 </div>` : ''}
+                ${showRevoke ? `
+                <hr class="my-2">
+                <div class="d-flex gap-2 flex-wrap">
+                    <button class="btn btn-outline-danger btn-sm" onclick="toggleRevokeForm('${denyKey}')">Revoke Access</button>
+                </div>
+                <div id="revoke-form-${denyKey}" style="display:none" class="mt-2">
+                    <textarea class="form-control form-control-sm mb-2" id="revoke-comment-${denyKey}" rows="2" placeholder="Reason for revocation (required)"></textarea>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-danger btn-sm" onclick="submitRevoke('${ref}','revoke-comment-${denyKey}')">Confirm Revoke</button>
+                        <button class="btn btn-secondary btn-sm" onclick="toggleRevokeForm('${denyKey}')">Cancel</button>
+                    </div>
+                </div>` : ''}
             </div>
         </div>`;
     }
@@ -609,6 +719,72 @@
     function toggleDenyForm(key) {
         const el = document.getElementById(`deny-form-${key}`);
         el.style.display = el.style.display === 'none' ? 'block' : 'none';
+    }
+
+    async function toggleAuditLog(ref, elId) {
+        const el = document.getElementById(elId);
+        if (el.style.display !== 'none') { el.style.display = 'none'; return; }
+        el.innerHTML = '<p class="text-muted small mb-0">Loading…</p>';
+        el.style.display = 'block';
+        try {
+            const res  = await fetch(`${API}/access-requests/${ref}/audit`, { headers: authHeaders() });
+            const data = await res.json();
+            if (!res.ok) { el.innerHTML = `<p class="text-danger small">${data.detail}</p>`; return; }
+            if (!data.length) { el.innerHTML = '<p class="text-muted small mb-0">No audit entries.</p>'; return; }
+            const rows = data.map(e => {
+                const actor = e.actor_name || 'System';
+                const when  = new Date(e.created_at).toLocaleString();
+                const reason = e.reason ? ` — ${e.reason}` : '';
+                return `<div class="text-muted small"><strong>${e.action}</strong> by ${actor} at ${when}${reason}</div>`;
+            }).join('');
+            el.innerHTML = `<div class="border-start ps-2 mt-1">${rows}</div>`;
+        } catch (e) { el.innerHTML = `<p class="text-danger small">${e.message}</p>`; }
+    }
+
+    async function cancelRequest(ref) {
+        if (!confirm('Cancel this request?')) return;
+        try {
+            const res  = await fetch(`${API}/access-requests/${ref}`, {
+                method: 'PATCH',
+                headers: authHeaders(),
+                body: JSON.stringify({ status: 'cancelled' })
+            });
+            const data = await res.json();
+            if (res.ok) { loadMyRequests(); }
+            else         { alert(data.detail || 'Cancel failed'); }
+        } catch (e) { alert(e.message); }
+    }
+
+    function handlePending409(data, el) {
+        const ref = data.detail?.reference_id || '';
+        const short = ref ? ref.slice(0, 8) + '…' : '';
+        el.innerHTML = `<div class="alert alert-warning py-2">
+            Request <span class="user-select-all">${short}</span> is already pending.
+            ${ref ? `<button class="btn btn-link btn-sm p-0 text-danger" onclick="cancelRequest('${ref}')">Cancel it</button> or` : ''} wait for approval before submitting another.
+        </div>`;
+    }
+
+    function toggleRevokeForm(key) {
+        const el = document.getElementById(`revoke-form-${key}`);
+        el.style.display = el.style.display === 'none' ? 'block' : 'none';
+    }
+
+    async function submitRevoke(ref, commentElId) {
+        const comment = document.getElementById(commentElId)?.value.trim();
+        if (!comment) {
+            document.getElementById(commentElId)?.classList.add('is-invalid');
+            return;
+        }
+        try {
+            const res  = await fetch(`${API}/access-requests/${ref}`, {
+                method: 'PATCH',
+                headers: authHeaders(),
+                body: JSON.stringify({ status: 'revoked', review_comment: comment })
+            });
+            const data = await res.json();
+            if (res.ok) { loadApprovalQueue(); loadMyRequests(); }
+            else         { alert(data.detail || 'Revoke failed'); }
+        } catch (e) { alert(e.message); }
     }
 
     async function submitReview(id, status, commentElId) {
@@ -679,7 +855,7 @@
 
                 const cap = isFree && data.data.length === 20 ? 'First 20 shown — ' : '';
                 const footer = isFree
-                    ? `<span class="text-muted small">${cap}<a href="#" onclick="new bootstrap.Tab(document.getElementById('tab-account-link')).show(); return false;">Upgrade your access</a> for full results</span>`
+                    ? `<span class="text-muted small">${cap}Upgrade your access for full results</span>`
                     : movieCursor
                         ? `<button class="btn btn-sm btn-outline-primary" onclick="searchMovies(${movieCursor})">Next Page →</button>`
                         : `<span class="text-muted small">End of results</span>`;

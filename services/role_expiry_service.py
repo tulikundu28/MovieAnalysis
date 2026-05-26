@@ -5,6 +5,7 @@ from sqlalchemy import update, select, and_, or_
 from db.tables import users_table, api_tokens_table
 from db.database import AsyncSessionLocal
 from utils.constants import LOGIN_SENTINEL_REQUEST_ID
+from repositories.access_repository import get_latest_approved_request_per_user, insert_audit_log
 
 DOWNGRADEABLE_ROLES = ('full_access', 'movie_admin')
 
@@ -53,6 +54,9 @@ async def downgrade_expired_or_revoked(db: AsyncSession) -> int:
             )
             .values(revoked=True)
         )
+        request_map = await get_latest_approved_request_per_user(db, affected_ids)
+        for user_id, request_id in request_map.items():
+            await insert_audit_log(db, request_id, None, "expired", "Role expired or all access tokens revoked")
 
     await db.commit()
     return len(affected_ids)

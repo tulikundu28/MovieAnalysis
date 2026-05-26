@@ -2,7 +2,7 @@ CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
 CREATE TYPE user_role AS ENUM ('free', 'full_access', 'movie_admin', 'workflow_admin', 'manager');
 CREATE TYPE user_type AS ENUM ('movie_customer', 'workflow_approver');
-CREATE TYPE request_status AS ENUM ('pending', 'approved', 'denied');
+CREATE TYPE request_status AS ENUM ('pending', 'approved', 'denied', 'revoked', 'cancelled');
 CREATE TYPE requested_role AS ENUM ('full_access', 'movie_admin', 'workflow_admin', 'manager');
 
 CREATE TABLE IF NOT EXISTS movies (
@@ -58,7 +58,7 @@ CREATE INDEX IF NOT EXISTS idx_api_tokens_token ON api_tokens(token);
 CREATE TABLE IF NOT EXISTS audit_log (
     id         SERIAL PRIMARY KEY,
     request_id INTEGER NOT NULL REFERENCES access_requests(id),
-    actor_id   INTEGER NOT NULL REFERENCES users(id),
+    actor_id   INTEGER REFERENCES users(id),  -- NULL = system action (e.g. expiry)
     action     TEXT NOT NULL,
     reason     TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()

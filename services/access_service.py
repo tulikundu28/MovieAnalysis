@@ -11,7 +11,11 @@ from repositories.access_repository import (
     update_access_request,
     update_user_role,
     create_api_token,
-    insert_audit_log
+    revoke_user_tokens,
+    insert_audit_log,
+    get_audit_logs_for_request,
+    get_pending_request_for_user,
+    cancel_access_request,
 )
 from repositories.user_repository import get_user_by_id
 from auth.jwt_handler import create_access_token
@@ -36,6 +40,13 @@ async def submit_access_request(
 ):
     if requested_role not in MOVIE_CUSTOMER_ROLES:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Movie customers can only request full_access or movie_admin")
+
+    existing = await get_pending_request_for_user(db, requester_id)
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"message": "You already have a pending request", "reference_id": str(existing.reference_id)}
+        )
 
     request = await create_access_request(db, requester_id, requested_role, reason, requested_expires_at)
     await insert_audit_log(db, request.id, requester_id, "submitted", None)
@@ -68,6 +79,54 @@ async def fetch_access_request(
     if caller_role not in ("manager", "workflow_admin") and request.requester_id != caller_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorised to view this request")
     return dict(request._mapping)
+
+
+async def cancel_own_request(db: AsyncSession, reference_id: str, requester_id: int):
+    request = await get_access_request_by_reference_id(db, reference_id)
+    if not request:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Request not found")
+    if request.requester_id != requester_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorised to cancel this request")
+    if request.status != "pending":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Only pending requests can be cancelled")
+    updated = await cancel_access_request(db, request.id, requester_id)
+    await insert_audit_log(db, request.id, requester_id, "cancelled", None)
+    await db.commit()
+    return dict(updated._mapping)
+
+
+async def fetch_audit_log(db: AsyncSession, reference_id: str):
+    request = await get_access_request_by_reference_id(db, reference_id)
+    if not request:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Request not found")
+    rows = await get_audit_logs_for_request(db, request.id)
+    return [dict(row._mapping) for row in rows]
+
+
+async def revoke_access_request(
+    db: AsyncSession,
+    reference_id: str,
+    revoker_id: int,
+    revoker_role: str,
+    review_comment: Optional[str]
+):
+    request = await get_access_request_by_reference_id(db, reference_id)
+    if not request:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Request not found")
+
+    if request.status != "approved":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Only approved requests can be revoked")
+
+    required_approver = ROLE_APPROVER_MAP.get(request.requested_role)
+    if revoker_role != required_approver:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorised to revoke this request")
+
+    updated = await update_access_request(db, request.id, "revoked", revoker_id, review_comment)
+    await update_user_role(db, request.requester_id, "free", None)
+    await revoke_user_tokens(db, request.requester_id)
+    await insert_audit_log(db, request.id, revoker_id, "revoked", review_comment)
+    await db.commit()
+    return dict(updated._mapping)
 
 
 async def fetch_access_requests(

@@ -7,8 +7,6 @@ from repositories.user_repository import get_user_by_email, create_user
 from repositories.access_repository import create_api_token, create_access_request, insert_audit_log
 from utils.constants import JWT_EXPIRY_MINUTES, LOGIN_SENTINEL_REQUEST_ID
 
-_CUSTOMER_EXPIRES = datetime(2099, 1, 1, tzinfo=timezone.utc)
-
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
@@ -20,7 +18,7 @@ def verify_password(plain: str, hashed: str) -> bool:
     return pwd_context.verify(plain, hashed)
 
 
-async def register_user(db: AsyncSession, email: str, name: str, create_password: str, confirm_password: str, role: str = 'full_access'):
+async def register_user(db: AsyncSession, email: str, name: str, create_password: str, confirm_password: str, role: str, requested_expires_at: datetime):
     if create_password != confirm_password:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Passwords do not match")
     existing = await get_user_by_email(db, email)
@@ -28,7 +26,7 @@ async def register_user(db: AsyncSession, email: str, name: str, create_password
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered")
     hashed = hash_password(create_password)
     user = await create_user(db, email, name, hashed, user_type='movie_customer', role='free')
-    req = await create_access_request(db, user.id, role, "Account registration", _CUSTOMER_EXPIRES)
+    req = await create_access_request(db, user.id, role, "Account registration", requested_expires_at)
     await insert_audit_log(db, req.id, user.id, "submitted", None)
     await db.commit()
     return {"reference_id": str(req.reference_id), "message": f"Request submitted. Awaiting {role} approval."}

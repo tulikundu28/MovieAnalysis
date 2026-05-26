@@ -6,7 +6,7 @@ from services.auth_service import login_user, register_user
 
 
 async def register(request: RegisterRequest, db: AsyncSession = Depends(get_db)):
-    return await register_user(db, request.email, request.name, request.create_password.get_secret_value(), request.confirm_password.get_secret_value(), request.role)
+    return await register_user(db, request.email, request.name, request.create_password.get_secret_value(), request.confirm_password.get_secret_value(), request.role, request.requested_expires_at)
 
 
 

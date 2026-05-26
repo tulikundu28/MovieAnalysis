@@ -1,4 +1,5 @@
 from typing import Literal
+from datetime import datetime
 from pydantic import BaseModel, EmailStr, SecretStr
 
 MOVIE_CUSTOMER_SIGNUP_ROLES = Literal['full_access', 'movie_admin']
@@ -15,6 +16,7 @@ class RegisterRequest(BaseModel):
     create_password: SecretStr
     confirm_password: SecretStr
     role: MOVIE_CUSTOMER_SIGNUP_ROLES = 'full_access'
+    requested_expires_at: datetime
 
 
 class TokenResponse(BaseModel):

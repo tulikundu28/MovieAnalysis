@@ -33,7 +33,7 @@ users_table = Table(
     Column("created_at", TZ, nullable=False)
 )
 
-request_status_enum = ENUM('pending', 'approved', 'denied', name='request_status', create_type=False)
+request_status_enum = ENUM('pending', 'approved', 'denied', 'revoked', 'cancelled', name='request_status', create_type=False)
 requested_role_enum = ENUM('full_access', 'movie_admin', 'workflow_admin', 'manager', name='requested_role', create_type=False)
 
 access_requests_table = Table(
@@ -70,7 +70,7 @@ audit_log_table = Table(
     metadata,
     Column("id", Integer, primary_key=True),
     Column("request_id", Integer, nullable=False),
-    Column("actor_id", Integer, nullable=False),
+    Column("actor_id", Integer),  # NULL = system action
     Column("action", Text, nullable=False),
     Column("reason", Text),
     Column("created_at", TZ, nullable=False)
