@@ -1,7 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
 from utils.helpers import CSVProcessorHelper
-from repositories.movie_repository import get_movie_by_id, search_movies, insert_movies_batch
+from repositories.movie_repository import get_movie_by_id, search_movies, insert_movies_batch, update_movie
 from utils.constants import INSERTED_KEY, BATCH_SIZE, DEFAULT_PAGE_SIZE
 
 async def fetch_movie_by_id(db: AsyncSession, movie_id: int):
@@ -23,6 +23,14 @@ async def fetch_movies(
     movies = [dict(row._mapping) for row in rows]
     next_cursor = movies[-1]["movie_id"] if len(movies) == page_size else None
     return {"data": movies, "next_cursor": next_cursor}
+
+
+async def edit_movie(db: AsyncSession, movie_id: int, updates: dict):
+    if not updates:
+        movie = await get_movie_by_id(db, movie_id)
+        return dict(movie._mapping) if movie else None
+    row = await update_movie(db, movie_id, updates)
+    return dict(row._mapping) if row else None
 
 
 async def process_csv_upload(db: AsyncSession, file_bytes: bytes, batch_size: int=BATCH_SIZE):

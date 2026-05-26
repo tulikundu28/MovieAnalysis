@@ -45,3 +45,14 @@ async def search_movies(
 async def insert_movies_batch(db: AsyncSession, movies: list[dict]):
     await db.execute(movies_table.insert(), movies)
     await db.commit()
+
+async def update_movie(db: AsyncSession, movie_id: int, updates: dict):
+    query = (
+        movies_table.update()
+        .where(movies_table.c[MovieColumns.MOVIE_ID] == movie_id)
+        .values(**updates)
+        .returning(*movies_table.c)
+    )
+    result = await db.execute(query)
+    await db.commit()
+    return result.fetchone()

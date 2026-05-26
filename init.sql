@@ -1,9 +1,83 @@
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
+CREATE TYPE user_role AS ENUM ('free', 'full_access', 'movie_admin', 'workflow_admin', 'manager');
+CREATE TYPE user_type AS ENUM ('movie_customer', 'workflow_approver');
+CREATE TYPE request_status AS ENUM ('pending', 'approved', 'denied');
+CREATE TYPE requested_role AS ENUM ('full_access', 'movie_admin', 'workflow_admin', 'manager');
+
 CREATE TABLE IF NOT EXISTS movies (
-      movie_id     INTEGER PRIMARY KEY,
-      title        TEXT NOT NULL,
-      release_year INTEGER,
-      genres       TEXT[]
-  );
+    movie_id     INTEGER PRIMARY KEY,
+    title        TEXT NOT NULL,
+    release_year INTEGER,
+    genres       TEXT[]
+);
 
 CREATE INDEX IF NOT EXISTS idx_genres ON movies USING GIN (genres);
 CREATE INDEX IF NOT EXISTS idx_release_year ON movies (release_year);
+CREATE INDEX IF NOT EXISTS idx_title_trgm ON movies USING GIN (title gin_trgm_ops);
+
+CREATE TABLE IF NOT EXISTS users (
+    id            SERIAL PRIMARY KEY,
+    email         TEXT NOT NULL UNIQUE,
+    name          TEXT NOT NULL,
+    password_hash TEXT NOT NULL,
+    role          user_role NOT NULL DEFAULT 'free',
+    user_type     user_type NOT NULL DEFAULT 'movie_customer',
+    expires_at    TIMESTAMPTZ,
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS access_requests (
+    id                   SERIAL PRIMARY KEY,
+    reference_id         UUID NOT NULL DEFAULT gen_random_uuid() UNIQUE,
+    requester_id         INTEGER NOT NULL REFERENCES users(id),
+    requested_role       requested_role NOT NULL,
+    reason               TEXT NOT NULL,
+    status               request_status NOT NULL DEFAULT 'pending',
+    reviewed_by          INTEGER REFERENCES users(id),
+    review_comment       TEXT,
+    requested_expires_at TIMESTAMPTZ NOT NULL,
+    created_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at           TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS api_tokens (
+    id         SERIAL PRIMARY KEY,
+    user_id    INTEGER NOT NULL REFERENCES users(id),
+    request_id INTEGER REFERENCES access_requests(id),
+    tier       user_role NOT NULL,
+    token      TEXT NOT NULL UNIQUE,
+    expires_at TIMESTAMPTZ NOT NULL,
+    revoked    BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_api_tokens_user ON api_tokens(user_id);
+CREATE INDEX IF NOT EXISTS idx_api_tokens_token ON api_tokens(token);
+
+CREATE TABLE IF NOT EXISTS audit_log (
+    id         SERIAL PRIMARY KEY,
+    request_id INTEGER NOT NULL REFERENCES access_requests(id),
+    actor_id   INTEGER NOT NULL REFERENCES users(id),
+    action     TEXT NOT NULL,
+    reason     TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_access_requests_requester ON access_requests(requester_id);
+CREATE INDEX IF NOT EXISTS idx_access_requests_status ON access_requests(status);
+CREATE INDEX IF NOT EXISTS idx_audit_log_request ON audit_log(request_id);
+
+INSERT INTO users (email, name, password_hash, role, user_type) VALUES (
+    'tuli.ku09@gmail.com',
+    'Tuli',
+    '$2b$12$5L2NxqX8pdfupN9rxtPM6u1g3IszvvClS.C8j3oEbt3PGH3A6sJTC',
+    'workflow_admin',
+    'workflow_approver'
+) ON CONFLICT (email) DO NOTHING;
+
+-- Sentinel row: login-issued tokens reference this instead of a real access request
+INSERT INTO access_requests (id, reference_id, requester_id, requested_role, reason, status, requested_expires_at, created_at, updated_at)
+SELECT 0, '00000000-0000-0000-0000-000000000000', id, 'workflow_admin', 'system sentinel for direct login tokens', 'approved', '2099-01-01 00:00:00+00', NOW(), NOW()
+FROM users WHERE email = 'tuli.ku09@gmail.com'
+ON CONFLICT (id) DO NOTHING;
