@@ -55,7 +55,7 @@ async def test_valid_roles_succeed(mock_db, role):
          patch("services.workflow_service.create_access_request", AsyncMock(return_value=req)), \
          patch("services.workflow_service.insert_audit_log", AsyncMock()):
         result = await register_workflow_user(mock_db, "a@b.com", "Bob", "pass", "pass", role, "reason")
-    assert "request_id" in result
+    assert result.reference_id is not None
 
 
 @pytest.mark.asyncio

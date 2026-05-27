@@ -8,6 +8,7 @@ from services.auth_service import hash_password
 from services.access_service import WORKFLOW_ROLES
 from utils.constants import UserType, AuditAction, WORKFLOW_EXPIRY_DATE
 from utils.errors import InvalidRoleError, PasswordMismatchError, EmailAlreadyRegisteredError
+from models.auth import RegistrationResponse
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +21,7 @@ async def register_workflow_user(
     confirm_password: str,
     requested_role: str,
     reason: str,
-) -> dict[str, Any]:
+) -> RegistrationResponse:
     """Create a workflow-approver account and submit a role request pending admin approval."""
     if requested_role not in WORKFLOW_ROLES:
         logger.warning("Invalid workflow role requested: %s email=%s", requested_role, email)
@@ -40,7 +41,7 @@ async def register_workflow_user(
     await db.commit()
 
     logger.info("Workflow user registered: user_id=%d email=%s requested_role=%s", user.id, email, requested_role)
-    return {
-        "request_id": request.id,
-        "message": f"Account created. Your {requested_role} request is pending admin approval.",
-    }
+    return RegistrationResponse(
+        reference_id=str(request.reference_id),
+        message=f"Account created. Your {requested_role} request is pending admin approval.",
+    )

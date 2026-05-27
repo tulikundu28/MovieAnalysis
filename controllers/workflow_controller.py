@@ -1,16 +1,15 @@
 """HTTP handler for workflow user registration."""
 import logging
-from typing import Any
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from db.database import get_db
-from models.auth import WorkflowRegisterRequest
+from models.auth import WorkflowRegisterRequest, RegistrationResponse
 from services.workflow_service import register_workflow_user as register_workflow_user_service
 
 logger = logging.getLogger(__name__)
 
 
-async def register_workflow_user(request: WorkflowRegisterRequest, db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
+async def register_workflow_user(request: WorkflowRegisterRequest, db: AsyncSession = Depends(get_db)) -> RegistrationResponse:
     """Create a new workflow-approver account with a pending role request."""
     return await register_workflow_user_service(
         db,
