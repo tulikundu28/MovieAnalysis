@@ -372,6 +372,11 @@
     const APPROVER_ROLES = ['workflow_admin', 'manager'];
     const ROLE_COLORS = { movie_admin: 'danger', workflow_admin: 'dark', manager: 'warning', full_access: 'primary', free: 'secondary' };
 
+    function fmtDetail(detail, fallback) {
+        if (!detail) return fallback;
+        if (Array.isArray(detail)) return detail.map(e => e.msg || JSON.stringify(e)).join('; ');
+        return detail;
+    }
     function getToken() { return localStorage.getItem('token'); }
     function getPayload() {
         const t = getToken();
@@ -503,7 +508,7 @@
                 const payload = getPayload();
                 if (payload && APPROVER_ROLES.includes(payload.role)) loadApprovalQueue();
             } else {
-                errorEl.innerHTML = `<div class="alert alert-danger py-2">${data.detail || 'Login failed'}</div>`;
+                errorEl.innerHTML = `<div class="alert alert-danger py-2">${fmtDetail(data.detail, 'Login failed')}</div>`;
             }
         } catch (e) {
             errorEl.innerHTML = `<div class="alert alert-danger py-2">${e.message}</div>`;
@@ -531,9 +536,9 @@
             });
             const data = await res.json();
             if (res.ok) {
-                el.innerHTML = `<div class="alert alert-success py-2">${data.message}<br><small>Request ID: #${data.request_id}</small></div>`;
+                el.innerHTML = `<div class="alert alert-success py-2">${data.message}<br><small class="user-select-all">Ref: ${data.reference_id}</small></div>`;
             } else {
-                el.innerHTML = `<div class="alert alert-danger py-2">${data.detail || 'Registration failed'}</div>`;
+                el.innerHTML = `<div class="alert alert-danger py-2">${fmtDetail(data.detail, 'Registration failed')}</div>`;
             }
         } catch (e) {
             el.innerHTML = `<div class="alert alert-danger py-2">${e.message}</div>`;
@@ -572,7 +577,7 @@
             if (res.ok) {
                 el.innerHTML = `<div class="alert alert-success py-2">Free account created. <a href="#" onclick="new bootstrap.Tab(document.getElementById('movies-existing-link')).show(); return false;">Sign in</a> to check your upgrade request.</div>`;
             } else {
-                el.innerHTML = `<div class="alert alert-danger py-2">${data.detail || 'Registration failed'}</div>`;
+                el.innerHTML = `<div class="alert alert-danger py-2">${fmtDetail(data.detail, 'Registration failed')}</div>`;
             }
         } catch (e) {
             document.getElementById('reg-result').innerHTML = `<div class="alert alert-danger py-2">${e.message}</div>`;
@@ -600,7 +605,7 @@
             } else if (res.status === 409) {
                 handlePending409(data, el);
             } else {
-                el.innerHTML = `<div class="alert alert-danger py-2">${data.detail || 'Submission failed'}</div>`;
+                el.innerHTML = `<div class="alert alert-danger py-2">${fmtDetail(data.detail, 'Submission failed')}</div>`;
             }
         } catch (e) { el.innerHTML = `<div class="alert alert-danger py-2">${e.message}</div>`; }
     }
@@ -628,7 +633,7 @@
             } else if (res.status === 409) {
                 handlePending409(data, el);
             } else {
-                el.innerHTML = `<div class="alert alert-danger py-2">${data.detail || 'Submission failed'}</div>`;
+                el.innerHTML = `<div class="alert alert-danger py-2">${fmtDetail(data.detail, 'Submission failed')}</div>`;
             }
         } catch (e) {
             document.getElementById('upgrade-result').innerHTML = `<div class="alert alert-danger py-2">${e.message}</div>`;
@@ -729,7 +734,7 @@
         try {
             const res  = await fetch(`${API}/access-requests/${ref}/audit`, { headers: authHeaders() });
             const data = await res.json();
-            if (!res.ok) { el.innerHTML = `<p class="text-danger small">${data.detail}</p>`; return; }
+            if (!res.ok) { el.innerHTML = `<p class="text-danger small">${fmtDetail(data.detail, 'Error')}</p>`; return; }
             if (!data.length) { el.innerHTML = '<p class="text-muted small mb-0">No audit entries.</p>'; return; }
             const rows = data.map(e => {
                 const actor = e.actor_name || 'System';
@@ -751,7 +756,7 @@
             });
             const data = await res.json();
             if (res.ok) { loadMyRequests(); }
-            else         { alert(data.detail || 'Cancel failed'); }
+            else         { alert(fmtDetail(data.detail, 'Cancel failed')); }
         } catch (e) { alert(e.message); }
     }
 
@@ -783,7 +788,7 @@
             });
             const data = await res.json();
             if (res.ok) { loadApprovalQueue(); loadMyRequests(); }
-            else         { alert(data.detail || 'Revoke failed'); }
+            else         { alert(fmtDetail(data.detail, 'Revoke failed')); }
         } catch (e) { alert(e.message); }
     }
 
@@ -801,7 +806,7 @@
             });
             const data = await res.json();
             if (res.ok) { loadApprovalQueue(); loadMyRequests(); }
-            else         { alert(data.detail || 'Review failed'); }
+            else         { alert(fmtDetail(data.detail, 'Review failed')); }
         } catch (e) { alert(e.message); }
     }
 
@@ -904,7 +909,7 @@
                 searchMovies(movieCursor || null);
             } else {
                 document.getElementById('edit-error').innerHTML =
-                    `<div class="alert alert-danger py-1 mt-2">${data.detail || 'Save failed'}</div>`;
+                    `<div class="alert alert-danger py-1 mt-2">${fmtDetail(data.detail, 'Save failed')}</div>`;
             }
         } catch (e) {
             document.getElementById('edit-error').innerHTML =
@@ -930,7 +935,7 @@
             const data = await res.json();
             resultEl.innerHTML = res.ok
                 ? `<div class="alert alert-success py-1">${data.inserted} movies inserted.</div>`
-                : `<div class="alert alert-danger py-1">${data.detail || 'Upload failed'}</div>`;
+                : `<div class="alert alert-danger py-1">${fmtDetail(data.detail, 'Upload failed')}</div>`;
         } catch (e) {
             resultEl.innerHTML = `<div class="alert alert-danger py-1">${e.message}</div>`;
         }
@@ -950,7 +955,7 @@
                             : 'Awaiting approval. Check back later.';
                 el.innerHTML = `<div class="alert alert-${color} py-2 mb-0"><strong>${data.requested_role}</strong> — ${data.status}<br><small>${note}</small></div>`;
             } else {
-                el.innerHTML = `<div class="alert alert-danger py-2 mb-0">${data.detail || 'Not found'}</div>`;
+                el.innerHTML = `<div class="alert alert-danger py-2 mb-0">${fmtDetail(data.detail, 'Not found')}</div>`;
             }
         } catch (e) { el.innerHTML = `<div class="alert alert-danger py-2 mb-0">${e.message}</div>`; }
     }
