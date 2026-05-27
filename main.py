@@ -1,3 +1,4 @@
+"""FastAPI application entry point: lifespan setup, middleware, and top-level routes."""
 import asyncio
 import logging
 from contextlib import asynccontextmanager

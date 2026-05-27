@@ -1,7 +1,8 @@
+"""HTTP handlers for access request operations: create, list, view, review, and audit."""
 import logging
 from fastapi import Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Optional
+from typing import Any, Optional
 from db.database import get_db
 from auth.dependencies import get_current_user, get_optional_user, require_roles
 from models.access import AccessRequestCreate, AccessRequestReview
@@ -21,8 +22,9 @@ OWNER_ME = "me"
 async def create_access_request(
     body: AccessRequestCreate,
     db: AsyncSession = Depends(get_db),
-    user: dict = Depends(get_current_user),
-):
+    user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Submit a new role-upgrade access request on behalf of the authenticated user."""
     return await submit_access_request(db, int(user["sub"]), body.requested_role, body.reason, body.requested_expires_at)
 
 
@@ -30,8 +32,9 @@ async def list_access_requests(
     owner: Optional[str] = Query(None, description="Pass 'me' to list your own requests"),
     status: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db),
-    user: dict = Depends(get_current_user),
-):
+    user: dict[str, Any] = Depends(get_current_user),
+) -> list[dict[str, Any]]:
+    """List access requests. Pass owner='me' for own requests; managers/admins see the full queue."""
     if owner == OWNER_ME:
         return await fetch_user_access_requests(db, int(user["sub"]))
     if user["role"] not in (UserRole.MANAGER, UserRole.WORKFLOW_ADMIN):
@@ -46,8 +49,9 @@ async def list_access_requests(
 async def get_access_request(
     reference_id: str,
     db: AsyncSession = Depends(get_db),
-    user: Optional[dict] = Depends(get_optional_user),
-):
+    user: Optional[dict[str, Any]] = Depends(get_optional_user),
+) -> dict[str, Any]:
+    """Fetch a single access request by reference ID. Unauthenticated callers receive a status-only view."""
     caller_id   = int(user["sub"]) if user else None
     caller_role = user["role"]     if user else None
     return await fetch_access_request(db, reference_id, caller_id, caller_role)
@@ -57,8 +61,9 @@ async def review_request(
     reference_id: str,
     body: AccessRequestReview,
     db: AsyncSession = Depends(get_db),
-    user: dict = Depends(get_current_user),
-):
+    user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Approve, deny, cancel, or revoke an access request depending on the caller's role and chosen status."""
     if body.status == RequestStatus.CANCELLED:
         return await cancel_own_request(db, reference_id, int(user["sub"]))
 
@@ -78,7 +83,8 @@ async def review_request(
 async def get_audit_log_for_request(
     reference_id: str,
     db: AsyncSession = Depends(get_db),
-    user: dict = Depends(require_roles(UserRole.MANAGER, UserRole.WORKFLOW_ADMIN)),
-):
+    user: dict[str, Any] = Depends(require_roles(UserRole.MANAGER, UserRole.WORKFLOW_ADMIN)),
+) -> list[dict[str, Any]]:
+    """Return the full audit trail for an access request. Requires MANAGER or WORKFLOW_ADMIN role."""
     return await fetch_audit_log(db, reference_id)
 

@@ -1,4 +1,6 @@
+"""Business logic for workflow user registration."""
 import logging
+from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from repositories.user_repository import get_user_by_email, create_user
 from repositories.access_repository import create_access_request, insert_audit_log
@@ -18,7 +20,8 @@ async def register_workflow_user(
     confirm_password: str,
     requested_role: str,
     reason: str,
-):
+) -> dict[str, Any]:
+    """Create a workflow-approver account and submit a role request pending admin approval."""
     if requested_role not in WORKFLOW_ROLES:
         logger.warning("Invalid workflow role requested: %s email=%s", requested_role, email)
         raise InvalidRoleError("Workflow role must be 'manager' or 'workflow_admin'")

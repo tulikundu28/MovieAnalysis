@@ -1,3 +1,4 @@
+"""Application-wide constants: column names, enums, config values, and pagination defaults."""
 import os
 from datetime import datetime, timezone
 

@@ -1,3 +1,4 @@
+"""Background task that periodically revokes expired user roles and their tokens."""
 import asyncio
 import logging
 from datetime import datetime, timezone
@@ -12,6 +13,18 @@ logger = logging.getLogger(__name__)
 
 
 async def downgrade_expired_or_revoked(db: AsyncSession) -> int:
+    """Downgrade users with expired or fully-revoked access to the FREE role.
+
+    Targets users whose role is in DOWNGRADEABLE_ROLES and whose expires_at has
+    passed, or who have no remaining active non-login API tokens.
+    Also revokes any remaining active tokens and writes EXPIRED audit log entries.
+
+    Args:
+        db: Active database session (will be committed before returning).
+
+    Returns:
+        Number of users downgraded in this run.
+    """
     now = datetime.now(timezone.utc)
 
     has_active_access_token = (
@@ -61,7 +74,15 @@ async def downgrade_expired_or_revoked(db: AsyncSession) -> int:
     return len(affected_ids)
 
 
-async def role_expiry_loop(interval_seconds: int = 60):
+async def role_expiry_loop(interval_seconds: int = 60) -> None:
+    """Continuously poll for expired roles and downgrade them.
+
+    Intended to run as a background asyncio task for the lifetime of the app.
+    Exceptions are caught and logged so a single failure does not stop the loop.
+
+    Args:
+        interval_seconds: Seconds to sleep between each expiry check.
+    """
     logger.info("Role-expiry loop started (interval=%ds)", interval_seconds)
     while True:
         await asyncio.sleep(interval_seconds)

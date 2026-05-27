@@ -1,6 +1,7 @@
+"""Business logic for access request lifecycle: submit, review, cancel, revoke, and audit."""
 import logging
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Optional
+from typing import Any, Optional
 from datetime import datetime
 from repositories.access_repository import (
     create_access_request,
@@ -52,7 +53,23 @@ async def submit_access_request(
     requested_role: str,
     reason: str,
     requested_expires_at: datetime,
-):
+) -> dict[str, Any]:
+    """Submit a new role-upgrade request on behalf of a movie customer.
+
+    Args:
+        db: Active database session.
+        requester_id: ID of the user submitting the request.
+        requested_role: Role being requested; must be in MOVIE_CUSTOMER_ROLES.
+        reason: Free-text justification for the request.
+        requested_expires_at: Desired expiry datetime for the role grant.
+
+    Returns:
+        dict of the newly created access request row.
+
+    Raises:
+        InvalidRoleError: If requested_role is not a valid movie-customer role.
+        DuplicatePendingRequestError: If the user already has a pending request.
+    """
     if requested_role not in MOVIE_CUSTOMER_ROLES:
         logger.warning("Invalid role request by user_id=%d: %s", requester_id, requested_role)
         raise InvalidRoleError("Movie customers can only request full_access or movie_admin")
@@ -70,7 +87,16 @@ async def submit_access_request(
     return dict(request._mapping)
 
 
-async def fetch_user_access_requests(db: AsyncSession, user_id: int):
+async def fetch_user_access_requests(db: AsyncSession, user_id: int) -> list[dict[str, Any]]:
+    """Return all access requests submitted by the given user.
+
+    Args:
+        db: Active database session.
+        user_id: ID of the user whose requests to retrieve.
+
+    Returns:
+        List of access request dicts ordered by creation date descending.
+    """
     rows = await get_access_requests_by_requester(db, user_id)
     return [dict(row._mapping) for row in rows]
 
@@ -82,7 +108,25 @@ async def fetch_access_request(
     reference_id: str,
     caller_id: Optional[int] = None,
     caller_role: Optional[str] = None,
-):
+) -> dict[str, Any]:
+    """Fetch an access request, enforcing visibility rules based on the caller's identity.
+
+    Args:
+        db: Active database session.
+        reference_id: UUID string identifying the access request.
+        caller_id: ID of the authenticated caller, or None for unauthenticated access.
+        caller_role: Role of the authenticated caller, or None for unauthenticated access.
+
+    Returns:
+        Full access request dict for the owner or a manager/admin.
+        Status-only dict (reference_id, requested_role, status, review_comment)
+        for unauthenticated callers.
+
+    Raises:
+        RequestNotFoundError: If no request matches the reference_id.
+        NotAuthorisedToViewError: If the caller is authenticated but is neither
+            the owner nor a manager/workflow_admin.
+    """
     request = await get_access_request_by_reference_id(db, reference_id)
     if not request:
         logger.warning("Request not found: ref=%s caller_id=%s", reference_id, caller_id)
@@ -103,7 +147,22 @@ async def fetch_access_request(
     return dict(request._mapping)
 
 
-async def cancel_own_request(db: AsyncSession, reference_id: str, requester_id: int):
+async def cancel_own_request(db: AsyncSession, reference_id: str, requester_id: int) -> dict[str, Any]:
+    """Cancel the caller's own pending access request.
+
+    Args:
+        db: Active database session.
+        reference_id: UUID string identifying the request to cancel.
+        requester_id: ID of the user attempting the cancellation.
+
+    Returns:
+        dict of the updated access request row with status CANCELLED.
+
+    Raises:
+        RequestNotFoundError: If no request matches the reference_id.
+        NotAuthorisedToCancelError: If the request belongs to a different user.
+        RequestNotCancellableError: If the request is not in PENDING status.
+    """
     request = await get_access_request_by_reference_id(db, reference_id)
     if not request:
         logger.warning("Cancel failed — request not found: ref=%s", reference_id)
@@ -125,7 +184,20 @@ async def cancel_own_request(db: AsyncSession, reference_id: str, requester_id: 
     return dict(updated._mapping)
 
 
-async def fetch_audit_log(db: AsyncSession, reference_id: str):
+async def fetch_audit_log(db: AsyncSession, reference_id: str) -> list[dict[str, Any]]:
+    """Return the full audit trail for an access request.
+
+    Args:
+        db: Active database session.
+        reference_id: UUID string identifying the access request.
+
+    Returns:
+        List of audit log entry dicts ordered by creation date ascending,
+        each including the actor's display name.
+
+    Raises:
+        RequestNotFoundError: If no request matches the reference_id.
+    """
     request = await get_access_request_by_reference_id(db, reference_id)
     if not request:
         logger.warning("Audit log fetch — request not found: ref=%s", reference_id)
@@ -140,7 +212,24 @@ async def revoke_access_request(
     revoker_id: int,
     revoker_role: str,
     review_comment: Optional[str],
-):
+) -> dict[str, Any]:
+    """Revoke a previously approved access request and strip the user's role.
+
+    Args:
+        db: Active database session.
+        reference_id: UUID string identifying the request to revoke.
+        revoker_id: ID of the admin performing the revocation.
+        revoker_role: Role of the admin; must match the required approver for the requested role.
+        review_comment: Optional reason for revocation (written to the audit log).
+
+    Returns:
+        dict of the updated access request row with status REVOKED.
+
+    Raises:
+        RequestNotFoundError: If no request matches the reference_id.
+        RequestNotRevocableError: If the request is not currently APPROVED.
+        NotAuthorisedToRevokeError: If revoker_role does not have permission to revoke this role.
+    """
     request = await get_access_request_by_reference_id(db, reference_id)
     if not request:
         logger.warning("Revoke failed — request not found: ref=%s", reference_id)
@@ -165,7 +254,18 @@ async def revoke_access_request(
     return dict(updated._mapping)
 
 
-async def fetch_access_requests(db: AsyncSession, caller_role: str, status: Optional[str] = None):
+async def fetch_access_requests(db: AsyncSession, caller_role: str, status: Optional[str] = None) -> list[dict[str, Any]]:
+    """Return the queue of access requests visible to the caller's role.
+
+    Args:
+        db: Active database session.
+        caller_role: Role of the caller; determines which requested_roles are visible
+                     via ROLE_APPROVER_MAP.
+        status: Optional status filter (e.g. 'pending', 'approved').
+
+    Returns:
+        List of access request dicts the caller is authorised to review.
+    """
     requested_roles = [role for role, approver in ROLE_APPROVER_MAP.items() if approver == caller_role]
     rows = await get_access_requests(db, status, requested_roles)
     return [dict(row._mapping) for row in rows]
@@ -178,7 +278,30 @@ async def review_access_request(
     reviewer_role: str,
     new_status: str,
     review_comment: Optional[str],
-):
+) -> dict[str, Any]:
+    """Approve or deny a pending access request.
+
+    On approval: upgrades the user's role, issues a new JWT, and persists the token.
+    On denial: a review_comment is required.
+
+    Args:
+        db: Active database session.
+        reference_id: UUID string identifying the request to review.
+        reviewer_id: ID of the reviewer.
+        reviewer_role: Role of the reviewer; must match the required approver for the requested role.
+        new_status: Target status — 'approved' or 'denied'.
+        review_comment: Required when denying; optional when approving.
+
+    Returns:
+        dict of the updated access request row. Includes 'api_token' key
+        with the newly issued JWT when the request is approved.
+
+    Raises:
+        RequestNotFoundError: If no request matches the reference_id.
+        RequestAlreadyReviewedError: If the request is not in PENDING status.
+        NotAuthorisedToReviewError: If reviewer_role cannot review this role.
+        CommentRequiredError: If new_status is 'denied' and no comment is provided.
+    """
     request = await get_access_request_by_reference_id(db, reference_id)
     if not request:
         logger.warning("Review failed — request not found: ref=%s", reference_id)

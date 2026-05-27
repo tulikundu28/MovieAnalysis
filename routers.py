@@ -1,3 +1,4 @@
+"""Declares all API routers and registers them on the FastAPI app."""
 from fastapi import FastAPI, APIRouter
 from models.movie import Movie, MovieSearchResponse
 from models.auth import TokenResponse, RegistrationResponse

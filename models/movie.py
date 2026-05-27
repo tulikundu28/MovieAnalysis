@@ -17,6 +17,7 @@ class MovieUpdate(BaseModel):
     @field_validator('title', mode='before')
     @classmethod
     def strip_title(cls, v):
+        """Strip whitespace from title; return None if the result is empty so the field is treated as absent."""
         if isinstance(v, str):
             stripped = v.strip()
             return stripped if stripped else None
@@ -25,6 +26,7 @@ class MovieUpdate(BaseModel):
     @field_validator('genres')
     @classmethod
     def genres_not_empty(cls, v):
+        """Reject an empty genres list and ensure every entry is a non-empty string."""
         if v is not None:
             if len(v) == 0:
                 raise ValueError("Genres list cannot be empty — omit the field to leave unchanged")

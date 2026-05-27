@@ -1,3 +1,4 @@
+"""SQLAlchemy Core table definitions for all database tables."""
 from sqlalchemy import Table, Column, Integer, Text, MetaData, TIMESTAMP, Boolean, text
 
 from sqlalchemy.dialects.postgresql import ARRAY, ENUM, UUID

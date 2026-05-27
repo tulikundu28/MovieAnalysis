@@ -38,16 +38,19 @@ class RegisterRequest(BaseModel):
     @field_validator('name', mode='before')
     @classmethod
     def strip_name(cls, v):
+        """Strip leading/trailing whitespace from the name field."""
         return v.strip() if isinstance(v, str) else v
 
     @field_validator('create_password', 'confirm_password')
     @classmethod
     def password_strength(cls, v: SecretStr) -> SecretStr:
+        """Enforce minimum password strength: length, uppercase, lowercase, and digit."""
         return _check_password_strength(v)
 
     @field_validator('requested_expires_at')
     @classmethod
     def must_be_future(cls, v: datetime) -> datetime:
+        """Reject expiry dates that are not in the future."""
         if v.tzinfo is None:
             v = v.replace(tzinfo=timezone.utc)
         if v <= datetime.now(timezone.utc):
@@ -83,14 +86,17 @@ class WorkflowRegisterRequest(BaseModel):
     @field_validator('name', mode='before')
     @classmethod
     def strip_name(cls, v):
+        """Strip leading/trailing whitespace from the name field."""
         return v.strip() if isinstance(v, str) else v
 
     @field_validator('create_password', 'confirm_password')
     @classmethod
     def password_strength(cls, v: SecretStr) -> SecretStr:
+        """Enforce minimum password strength: length, uppercase, lowercase, and digit."""
         return _check_password_strength(v)
 
     @field_validator('reason', mode='before')
     @classmethod
     def strip_reason(cls, v):
+        """Strip leading/trailing whitespace from the reason field."""
         return v.strip() if isinstance(v, str) else v

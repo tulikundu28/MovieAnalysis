@@ -1,3 +1,4 @@
+"""Utility helpers, including the CSV processor for bulk movie ingestion."""
 import logging
 from abc import ABC, abstractmethod
 import pandas as pd

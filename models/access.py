@@ -11,11 +11,13 @@ class AccessRequestCreate(BaseModel):
     @field_validator('reason', mode='before')
     @classmethod
     def strip_reason(cls, v):
+        """Strip leading/trailing whitespace from the reason field."""
         return v.strip() if isinstance(v, str) else v
 
     @field_validator('requested_expires_at')
     @classmethod
     def must_be_future(cls, v: datetime) -> datetime:
+        """Reject expiry dates that are not in the future."""
         if v.tzinfo is None:
             v = v.replace(tzinfo=timezone.utc)
         if v <= datetime.now(timezone.utc):
@@ -30,6 +32,7 @@ class AccessRequestReview(BaseModel):
     @field_validator('review_comment', mode='before')
     @classmethod
     def strip_comment(cls, v):
+        """Strip whitespace from the review comment; return None if the result is empty."""
         if isinstance(v, str):
             stripped = v.strip()
             return stripped if stripped else None

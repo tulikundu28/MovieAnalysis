@@ -1,3 +1,4 @@
+"""Async SQLAlchemy engine and session factory; provides the get_db dependency."""
 import logging
 import os
 import sys
